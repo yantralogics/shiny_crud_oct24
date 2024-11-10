@@ -73,6 +73,11 @@ editData <- function(data,tableName) {
 ## for this we need to identify which primary keys are present
 ## delete from database first and then insert into followed by sort 
 uploadData <- function(uploadData,tableName){
+  ## Need to check what data has been changed 
+  ## each table has a combination key that's not primary key 
+  ## identify that per table for example - pitname+plantname
+  
+  ##verify if the file uploaded has the same fields as tableNames
   
   
   
@@ -87,7 +92,8 @@ ui <- page_fluid(
     actionButton('add_row','Add Record'),
     actionButton('edit_row','Edit Record'),
     actionButton('delete_row','Delete Record'),
-    downloadButton('download_data')
+    downloadButton('download_data'),
+    fileInput('upload_data','Bulk edited data')
   ),
   DT::dataTableOutput('pit_data')
 )
