@@ -23,7 +23,7 @@ saveData <- function(data,tableName) {
     paste(data, collapse = "', '")
   )
   # Submit the update query and disconnect
-  dbGetQuery(db, query)
+  DBI::dbSendQuery(db, query)
   dbDisconnect(db)
 }
 
@@ -37,6 +37,33 @@ loadData <- function(tableName) {
   dbDisconnect(db)
   data
 }
+
+
+
+deleteData <- function(data, tableName){
+  # Connect to the database - this is append operation
+  db <- dbConnect(SQLite(), sqlitePath)
+
+  query_DF <- data %>%
+    t() %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column() 
+  names(query_DF) <- c('rowname','V1')
+  query_DF <- query_DF %>%   
+  mutate(querystring = paste0(rowname,' = ',"'",V1,"'"))
+  
+  primary_key_statement = query_DF %>% filter(rowname == 'Pit_Id') %>% pull(querystring)
+   query <- sprintf(
+    "DELETE  FROM %s where %s",
+    tableName, 
+    
+    primary_key_statement
+  )
+  # Submit the update query and disconnect
+  dbExecute(db, query)
+  dbDisconnect(db)
+}
+
 ## we need something for edit data queries and delete data queries 
 ## SAMPLE
 # UPDATE Customers
@@ -136,7 +163,7 @@ server<- function(input,output,session){
     ## Put in logic for creating the entry in new record 
     # browser()
     new_data = data_in() %>% slice(1)
-    new_data$Pit_Id = max(pit_cap_data$Pit_Id)+1
+    new_data$Pit_Id = max(data_in()$Pit_Id)+1
     new_data$Pit_Name = input[['pit_name']]
     new_data$Plant_Name = input[['plant_name']]
     new_data$Daily_Capacity_Lbs = input[['daily_cap']] %>% as.integer()
@@ -237,7 +264,12 @@ server<- function(input,output,session){
     ## Get the data for deletion
     temp_data = data_in()[-rv$selected_ind_del, ]
     ## add new_data to temp_data
-    data_in(temp_data %>% arrange(Pit_Id))
+    
+    delete_df = data_in()[rv$selected_ind_del,]
+    deleteData(delete_df,'pit_capacity_data')
+    
+    data_in(loadData('pit_capacity_data'))
+    
     ## Persist operation with a SQL query 
     showNotification('Someone deleted a record bro!')
     removeModal()
