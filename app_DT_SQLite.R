@@ -131,7 +131,7 @@ server<- function(input,output,session){
   #rv$
   rv <- reactiveValues()
   output$pit_data <- DT::renderDataTable({
-    data_in() %>% DT::datatable(selection='single')
+    data_in() %>% DT::datatable(selection='single',options = list(pageLength=20))
   })
   ## Now lets put stuff down as each CRUD action happnes
   
@@ -284,8 +284,41 @@ server<- function(input,output,session){
       write.csv(data_in(),file)
     }
   )
-  ## WE need a way to persist data now 
-  ## On exit, we will persist all operations ?
+  
+  
+  ## What happens when we upload?
+  observeEvent(input$upload_data,{
+    # browser()
+    rv$uploadData <- (data.table::fread(input$upload_data$datapath))
+    
+    ## Show Modal of the data uploaded 
+    showModal(modalDialog(
+      ## this has to have everything 
+      tagList(
+        h3('Are you sure you want to add  this record?'),
+        DT::dataTableOutput('upload_data_add')
+        
+      ),
+      footer =tagList(
+        modalButton('Cancel'),
+        actionButton('append_data','Append Data'),
+        actionButton('overwrite_data',"Overwrite")
+      ),
+      easyClose = T,
+      fade = T,
+      size = 'l'
+    ))
+    ## Modal should have the option to Overwrite/ Append  or discard data 
+    
+  })
+  
+  output$upload_data_add <- DT::renderDataTable({
+    rv$uploadData %>% DT::datatable()
+  })
+  
+  ## what happens when we append the data
+  
+  ## what happens when we overwrite the data 
   
   
 }
