@@ -15,6 +15,8 @@ pit_cap_data <- pit_cap_data %>% select_if(not_all_na) %>% mutate(Plant_Name = a
 con <- DBI::dbConnect(SQLite(),sqlitePath)
 # check if there are tables
 dbListTables(con)
+quer2 <- 'DROP TABLE pit_capacity_data'
+dbSendQuery(con,quer2)
 # add tables 
 dbWriteTable(conn = con, name = 'pit_capacity_data',pit_cap_data)
 ## check tables again

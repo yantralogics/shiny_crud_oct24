@@ -16,14 +16,17 @@ saveData <- function(data,tableName) {
   # Connect to the database - this is append operation
   db <- dbConnect(SQLite(), sqlitePath)
   # Construct the update query by looping over the data fields
-  query <- sprintf(
-    "INSERT INTO %s (%s) VALUES ('%s')",
-    tableName, 
-    paste(names(data), collapse = ", "),
-    paste(data, collapse = "', '")
-  )
+  # browser()
+  # query <- sprintf(
+  #   "INSERT INTO %s (%s) VALUES ('%s')",
+  #   tableName, 
+  #   paste(names(data), collapse = ", "),
+  #   paste(data, collapse = "', '")
+  # )
   # Submit the update query and disconnect
-  DBI::dbSendQuery(db, query)
+  # res <-DBI::dbSendQuery(db, query)
+  # dbClearResult(res)
+  dbAppendTable(db,tableName,data)
   dbDisconnect(db)
 }
 
@@ -43,21 +46,19 @@ loadData <- function(tableName) {
 deleteData <- function(data, tableName){
   # Connect to the database - this is append operation
   db <- dbConnect(SQLite(), sqlitePath)
-
+  # browser()
   query_DF <- data %>%
-    t() %>%
-    as.data.frame() %>%
-    tibble::rownames_to_column() 
-  names(query_DF) <- c('rowname','V1')
-  query_DF <- query_DF %>%   
-  mutate(querystring = paste0(rowname,' = ',"'",V1,"'"))
-  
-  primary_key_statement = query_DF %>% filter(rowname == 'Pit_Id') %>% pull(querystring)
+    #group_by(Pit_Id) %>% 
+    summarise(MaxID = max(Pit_Id,na.rm = T),
+              MinID = min(Pit_Id,na.rm = T)) %>% 
+    ungroup()
+  primary_key_statement <- 'Pit_Id'
    query <- sprintf(
-    "DELETE  FROM %s where %s",
+    "DELETE  FROM %s where %s BETWEEN %s AND %s",
     tableName, 
-    
-    primary_key_statement
+    primary_key_statement,
+    query_DF$MinID,
+    query_DF$MaxID
   )
   # Submit the update query and disconnect
   dbExecute(db, query)
@@ -115,6 +116,7 @@ uploadData <- function(uploadData,tableName){
 
 
 ui <- page_fluid(
+  shinyjs::useShinyjs(),
   layout_columns(
     actionButton('add_row','Add Record'),
     actionButton('edit_row','Edit Record'),
@@ -301,8 +303,8 @@ server<- function(input,output,session){
       ),
       footer =tagList(
         modalButton('Cancel'),
-        actionButton('append_data','Append Data'),
-        actionButton('overwrite_data',"Overwrite")
+        actionButton('upload_append_data','Append Data'),
+        actionButton('upload_overwrite_data',"Overwrite")
       ),
       easyClose = T,
       fade = T,
@@ -317,9 +319,33 @@ server<- function(input,output,session){
   })
   
   ## what happens when we append the data
+  observeEvent(input$upload_append_data,{
+    ## take a subset of data that has the same fields as table in question
+    data_subset <- rv$uploadData %>% select(names(data_in()))
+    ## Future- validation of the Pit_ID - need to make sure the same ID does not exist in the table 
+    
+    ## now it's the same operation as savedata
+    saveData(data_subset,'pit_capacity_data')
+    removeModal()
+    #browser
+    shinyjs::refresh()
+  })
   
   ## what happens when we overwrite the data 
-  
+  observeEvent(input$upload_overwrite_data,{
+    ## take a subset of data that has the same fields as table in question
+    data_subset <- rv$uploadData %>% select(names(data_in()))
+    
+    ### First we delete everything we have in that table 
+    #browser()
+    deleteData(data_in(),'pit_capacity_data')
+    
+    ## Now we save everything we have in data_subset
+    saveData(data_subset, 'pit_capacity_data')
+    removeModal()
+    shinyjs::refresh()
+    
+  })
   
 }
 
