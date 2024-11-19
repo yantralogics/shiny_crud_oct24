@@ -43,20 +43,20 @@ loadData <- function(tableName) {
 
 
 
-deleteData <- function(data, tableName){
+deleteData <- function(data, tableName,primary_key){
   # Connect to the database - this is append operation
   db <- dbConnect(SQLite(), sqlitePath)
-  # browser()
+   # browser()
   query_DF <- data %>%
     #group_by(Pit_Id) %>% 
-    summarise(MaxID = max(Pit_Id,na.rm = T),
-              MinID = min(Pit_Id,na.rm = T)) %>% 
+    summarise(MaxID = max(eval(rlang::parse_expr(primary_key)),na.rm = T),
+              MinID = min(eval(rlang::parse_expr(primary_key)),na.rm = T)) %>% 
     ungroup()
-  primary_key_statement <- 'Pit_Id'
+  
    query <- sprintf(
     "DELETE  FROM %s where %s BETWEEN %s AND %s",
     tableName, 
-    primary_key_statement,
+    primary_key,
     query_DF$MinID,
     query_DF$MaxID
   )
@@ -268,7 +268,7 @@ server<- function(input,output,session){
     ## add new_data to temp_data
     
     delete_df = data_in()[rv$selected_ind_del,]
-    deleteData(delete_df,'pit_capacity_data')
+    deleteData(delete_df,'pit_capacity_data','Pit_Id')
     
     data_in(loadData('pit_capacity_data'))
     
@@ -338,7 +338,7 @@ server<- function(input,output,session){
     
     ### First we delete everything we have in that table 
     #browser()
-    deleteData(data_in(),'pit_capacity_data')
+    deleteData(data_in(),'pit_capacity_data','Pit_Id')
     
     ## Now we save everything we have in data_subset
     saveData(data_subset, 'pit_capacity_data')
